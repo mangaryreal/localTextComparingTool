@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TextDiff Pro Max</title>
+<style>
+/* =========================================================
+   CSS Variables & Theming
+   ========================================================= */
+:root {
+  --bg:          #ffffff;
+  --bg2:         #f6f8fa;
+  --bg3:         #eaecef;
+  --fg:          #24292f;
+  --fg2:         #57606a;
+  --fg3:         #8c959f;
+  --border:      #d0d7de;
+  --accent:      #0969da;
+  --accent-h:    #0550ae;
+  --add-bg:      #dafbe1;
+  --add-hl:      #acf2bd;
+  --add-fg:      #1a7f37;
+  --del-bg:      #ffebe9;
+  --del-hl:      #ffc1c0;
+  --del-fg:      #cf222e;
+  --chg-bg:      #fff8c5;
+  --chg-hl:      #fae17d;
+  --eq-bg:       #ffffff;
+  --num-bg:      #f6f8fa;
+  --num-fg:      #8c959f;
+  --shadow:      0 1px 4px rgba(0,0,0,.1);
+  --r:           6px;
+  --mono:        'Cascadia Code','JetBrains Mono','Fira Code',Consolas,Monaco,monospace;
+  --sans:        -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+}
+[data-theme=dark]{
+  --bg:          #0d1117;
+  --bg2:         #161b22;
+  --bg3:         #21262d;
+  --fg:          #e6edf3;
+  --fg2:         #848d97;
+  --fg3:         #6e7681;
+  --border:      #30363d;
+  --accent:      #58a6ff;
+  --accent-h:    #79b8ff;
+  --add-bg:      #0d2b1e;
+  --add-hl:      #1a4229;
+  --add-fg:      #3fb950;
+  --del-bg:      #2d1116;
+  --del-hl:      #4b1820;
+  --del-fg:      #f85149;
+  --chg-bg:      #2b2200;
+  --chg-hl:      #524700;
+  --eq-bg:       #0d1117;
+  --num-bg:      #161b22;
+  --num-fg:      #6e7681;
+}
+
+/* =========================================================
+   Reset & Base
+   ========================================================= */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--sans);font-size:14px;color:var(--fg);background:var(--bg);transition:background .2s,color .2s}
+button{font:inherit;cursor:pointer;border:1px solid var(--border);background:var(--bg2);color:var(--fg);border-radius:var(--r);padding:4px 10px;transition:background .15s,border-color .15s,color .15s}
+button:hover{background:var(--bg3);border-color:var(--fg3)}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button.primary:hover{background:var(--accent-h);border-color:var(--accent-h)}
+button:disabled{opacity:.45;cursor:default}
+select,input[type=number],input[type=text]{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--border);border-radius:var(--r);padding:4px 8px}
+select:focus,input:focus{outline:2px solid var(--accent);outline-offset:1px}
+label{cursor:pointer;user-select:none}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--fg3)}
+
+/* =========================================================
+   Layout
+   ========================================================= */
+#app{display:flex;flex-direction:column;min-height:100vh}
+
+/* Header */
+#header{
+  display:flex;align-items:center;gap:8px;padding:8px 16px;
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:100;
+}
+#header h1{font-size:1.1rem;font-weight:700;letter-spacing:-.3px;white-space:nowrap}
+#header h1 span{color:var(--accent)}
+#header-spacer{flex:1}
+#kbd-btn{font-size:.75rem}
+
+/* Input section */
+#inputs{
+  display:grid;grid-template-columns:1fr 1fr;gap:0;
+  border-bottom:1px solid var(--border);
+}
+.input-pane{
+  display:flex;flex-direction:column;
+  border-right:1px solid var(--border);
+}
+.input-pane:last-child{border-right:none}
+.pane-header{
+  display:flex;align-items:center;gap:6px;padding:6px 10px;
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  min-height:36px;
+}
+.pane-label{font-weight:600;font-size:.8rem;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pane-stat{font-size:.72rem;color:var(--fg3);white-space:nowrap}
+.pane-actions{display:flex;gap:4px;flex-shrink:0}
+.pane-actions button{padding:2px 7px;font-size:.75rem}
+.drop-zone{
+  position:relative;flex:1;display:flex;flex-direction:column;
+  min-height:200px;max-height:300px;
+}
+.drop-zone.drag-over::after{
+  content:'Drop file here';position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;font-weight:600;color:var(--accent);
+  background:rgba(9,105,218,.08);border:2px dashed var(--accent);
+  border-radius:var(--r);z-index:5;pointer-events:none;
+}
+textarea{
+  flex:1;resize:none;padding:10px 12px;
+  font-family:var(--mono);font-size:13px;line-height:1.5;
+  color:var(--fg);background:var(--bg);border:none;outline:none;
+  width:100%;
+}
+
+/* Controls bar */
+#controls{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+  padding:8px 12px;background:var(--bg2);border-bottom:1px solid var(--border);
+}
+.ctrl-group{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.ctrl-sep{width:1px;height:20px;background:var(--border);margin:0 2px}
+.ctrl-label{font-size:.75rem;color:var(--fg2);white-space:nowrap}
+#controls select{padding:3px 6px;font-size:.8rem}
+#controls input[type=number]{width:52px;padding:3px 6px;font-size:.8rem}
+#controls label{font-size:.8rem;display:flex;align-items:center;gap:4px}
+#controls input[type=checkbox]{accent-color:var(--accent);width:14px;height:14px}
+#compare-btn{padding:5px 16px;font-size:.82rem}
+#find-box{padding:3px 8px;font-size:.8rem;width:140px}
+
+/* Stats bar */
+#stats-bar{
+  display:flex;align-items:center;gap:10px;padding:5px 14px;
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  font-size:.78rem;flex-wrap:wrap;min-height:32px;
+}
+.stat-chip{
+  display:inline-flex;align-items:center;gap:3px;
+  border-radius:20px;padding:1px 8px;font-weight:600;
+}
+.stat-add{background:var(--add-bg);color:var(--add-fg)}
+.stat-del{background:var(--del-bg);color:var(--del-fg)}
+.stat-chg{background:var(--chg-bg);color:#7d6000}
+[data-theme=dark] .stat-chg{color:#e5c000}
+.stat-eq{background:var(--bg3);color:var(--fg2)}
+#stats-bar-spacer{flex:1}
+.nav-btns{display:flex;align-items:center;gap:4px}
+.nav-btns button{padding:2px 8px;font-size:.78rem}
+#diff-pos{font-size:.78rem;color:var(--fg2);white-space:nowrap}
+#copy-btn,#dl-btn{font-size:.78rem;padding:2px 9px}
+
+/* Diff output */
+#diff-output{
+  flex:1;overflow:auto;
+  font-family:var(--mono);font-size:13px;line-height:1.5;
+}
+#diff-placeholder{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:200px;gap:10px;color:var(--fg3);font-family:var(--sans);
+}
+#diff-placeholder svg{opacity:.3}
+#diff-placeholder p{font-size:.9rem}
+
+/* =========================================================
+   Side-by-side view
+   ========================================================= */
+.sb-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.sb-table td,
+.sb-table th{padding:0;vertical-align:top;white-space:pre}
+.sb-num{
+  width:48px;min-width:48px;max-width:48px;
+  background:var(--num-bg);color:var(--num-fg);
+  text-align:right;padding:0 8px 0 4px;
+  user-select:none;font-size:.8em;border-right:1px solid var(--border);
+  position:sticky;
+}
+.sb-code{
+  padding:0 6px;overflow:hidden;text-overflow:ellipsis;
+  width:calc(50% - 48px);
+}
+.sb-code.wrap{white-space:pre-wrap;word-break:break-all;text-overflow:clip}
+.row-add .sb-code,.row-add .sb-num{background:var(--add-bg)}
+.row-del .sb-code,.row-del .sb-num{background:var(--del-bg)}
+.row-chg-old .sb-code,.row-chg-old .sb-num{background:var(--del-bg)}
+.row-chg-new .sb-code,.row-chg-new .sb-num{background:var(--add-bg)}
+.row-eq .sb-code{background:var(--eq-bg)}
+.row-eq .sb-num{background:var(--num-bg)}
+.row-sep td{background:var(--bg2);color:var(--fg3);font-size:.78rem;padding:2px 10px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.hl-add{background:var(--add-hl);border-radius:2px}
+.hl-del{background:var(--del-hl);border-radius:2px}
+.row-chg .sb-code-del,.row-chg .sb-num-del{background:var(--del-bg)}
+.row-chg .sb-code-ins,.row-chg .sb-num-ins{background:var(--add-bg)}
+.active-diff .sb-num,.active-diff .sb-code{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* =========================================================
+   Unified view
+   ========================================================= */
+.uni-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.uni-table td{padding:0;vertical-align:top}
+.uni-num{
+  width:36px;min-width:36px;max-width:36px;
+  background:var(--num-bg);color:var(--num-fg);
+  text-align:right;padding:0 5px;
+  user-select:none;font-size:.8em;
+  border-right:1px solid var(--border);white-space:pre;
+}
+.uni-sign{
+  width:18px;min-width:18px;max-width:18px;
+  text-align:center;font-weight:700;user-select:none;
+  white-space:pre;
+}
+.uni-code{padding:0 6px;white-space:pre;overflow:hidden;text-overflow:ellipsis}
+.uni-code.wrap{white-space:pre-wrap;word-break:break-all;text-overflow:clip}
+.urow-add .uni-num,.urow-add .uni-sign,.urow-add .uni-code{background:var(--add-bg);color:var(--add-fg)}
+.urow-del .uni-num,.urow-del .uni-sign,.urow-del .uni-code{background:var(--del-bg);color:var(--del-fg)}
+.urow-eq .uni-code{background:var(--eq-bg);color:var(--fg)}
+.urow-eq .uni-num{background:var(--num-bg)}
+.urow-sep td{background:var(--bg2);color:var(--fg3);font-size:.78rem;padding:2px 10px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+
+/* =========================================================
+   Inline view
+   ========================================================= */
+.inline-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.inline-table td{padding:0;vertical-align:top}
+.irow-add .il-num,.irow-add .il-code{background:var(--add-bg)}
+.irow-del .il-num,.irow-del .il-code{background:var(--del-bg)}
+.irow-eq .il-code{background:var(--eq-bg)}
+.irow-eq .il-num{background:var(--num-bg)}
+.irow-sep td{background:var(--bg2);color:var(--fg3);font-size:.78rem;padding:2px 10px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.il-num{
+  width:36px;min-width:36px;max-width:36px;
+  background:var(--num-bg);color:var(--num-fg);
+  text-align:right;padding:0 5px;
+  user-select:none;font-size:.8em;
+  border-right:1px solid var(--border);white-space:pre;
+}
+.il-label{
+  width:28px;min-width:28px;text-align:center;
+  font-size:.75em;font-weight:700;white-space:pre;user-select:none;
+}
+.il-code{padding:0 6px;white-space:pre;overflow:hidden;text-overflow:ellipsis}
+.il-code.wrap{white-space:pre-wrap;word-break:break-all;text-overflow:clip}
+
+/* Collapsed section toggle */
+.expand-btn{
+  display:inline-flex;align-items:center;gap:4px;
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--r);padding:1px 8px;font-size:.75rem;
+  cursor:pointer;margin:2px 0;
+}
+.expand-btn:hover{background:var(--bg3)}
+
+/* =========================================================
+   Find highlight
+   ========================================================= */
+.find-match{background:#f9c;border-radius:2px}
+[data-theme=dark] .find-match{background:#5a3}
+
+/* =========================================================
+   Keyboard shortcuts modal
+   ========================================================= */
+#modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);
+  z-index:200;align-items:center;justify-content:center;
+}
+#modal-overlay.open{display:flex}
+#modal{
+  background:var(--bg);border:1px solid var(--border);border-radius:10px;
+  padding:24px;max-width:480px;width:90%;box-shadow:var(--shadow);
+  max-height:80vh;overflow-y:auto;
+}
+#modal h2{font-size:1rem;margin-bottom:14px}
+#modal table{width:100%;border-collapse:collapse}
+#modal td{padding:5px 8px;font-size:.82rem;border-bottom:1px solid var(--border)}
+#modal td:first-child{font-family:var(--mono);white-space:nowrap}
+kbd{
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:4px;padding:1px 6px;font-size:.75rem;
+  font-family:var(--mono);
+}
+#modal-close{float:right;margin-top:-2px}
+
+/* =========================================================
+   Misc
+   ========================================================= */
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+#toast{
+  position:fixed;bottom:20px;right:20px;
+  background:var(--fg);color:var(--bg);
+  border-radius:var(--r);padding:8px 16px;font-size:.83rem;
+  opacity:0;transition:opacity .3s;pointer-events:none;z-index:300;
+  max-width:260px;text-align:center;
+}
+#toast.show{opacity:1}
+
+/* Responsive */
+@media(max-width:640px){
+  #inputs{grid-template-columns:1fr}
+  .input-pane:first-child{border-right:none;border-bottom:1px solid var(--border)}
+  .sb-table,.sb-num,.sb-code{display:none}
+  #view-select option[value=sidebyside]{display:none}
+}
+
+/* Scrollbar sync visual */
+.sync-scroll #diff-output{overflow:auto}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- ===== HEADER ===== -->
+<header id="header">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+  <h1>Text<span>Diff</span> Pro Max</h1>
+  <div id="header-spacer"></div>
+  <button id="kbd-btn" title="Keyboard shortcuts (?)">⌨ Shortcuts</button>
+  <button id="theme-btn" title="Toggle theme">🌙</button>
+</header>
+
+<!-- ===== INPUTS ===== -->
+<section id="inputs">
+  <!-- Left pane -->
+  <div class="input-pane" id="pane-left">
+    <div class="pane-header">
+      <span class="pane-label" id="label-left" title="Original">Original</span>
+      <span class="pane-stat" id="stat-left"></span>
+      <div class="pane-actions">
+        <button id="paste-left" title="Paste from clipboard">📋 Paste</button>
+        <button id="upload-left" title="Load file">📂 File</button>
+        <button id="fmt-left" title="Format JSON">{ } JSON</button>
+        <button id="clear-left" title="Clear">✕</button>
+      </div>
+    </div>
+    <div class="drop-zone" id="drop-left">
+      <textarea id="text-left" spellcheck="false" placeholder="Paste or type original text here…&#10;You can also drag & drop a file onto this area."></textarea>
+    </div>
+    <input type="file" id="file-left" class="visually-hidden" accept="*/*" />
+  </div>
+
+  <!-- Right pane -->
+  <div class="input-pane" id="pane-right">
+    <div class="pane-header">
+      <span class="pane-label" id="label-right" title="Modified">Modified</span>
+      <span class="pane-stat" id="stat-right"></span>
+      <div class="pane-actions">
+        <button id="paste-right" title="Paste from clipboard">📋 Paste</button>
+        <button id="upload-right" title="Load file">📂 File</button>
+        <button id="fmt-right" title="Format JSON">{ } JSON</button>
+        <button id="clear-right" title="Clear">✕</button>
+        <button id="swap-btn" title="Swap left and right">⇄ Swap</button>
+      </div>
+    </div>
+    <div class="drop-zone" id="drop-right">
+      <textarea id="text-right" spellcheck="false" placeholder="Paste or type modified text here…&#10;You can also drag & drop a file onto this area."></textarea>
+    </div>
+    <input type="file" id="file-right" class="visually-hidden" accept="*/*" />
+  </div>
+</section>
+
+<!-- ===== CONTROLS ===== -->
+<div id="controls">
+  <div class="ctrl-group">
+    <button class="primary" id="compare-btn">⚡ Compare</button>
+  </div>
+  <div class="ctrl-sep"></div>
+  <div class="ctrl-group">
+    <label class="ctrl-label" for="view-select">View:</label>
+    <select id="view-select">
+      <option value="sidebyside">Side by Side</option>
+      <option value="unified">Unified</option>
+      <option value="inline">Inline</option>
+    </select>
+  </div>
+  <div class="ctrl-sep"></div>
+  <div class="ctrl-group">
+    <label class="ctrl-label" for="granularity">Highlight:</label>
+    <select id="granularity">
+      <option value="word">Word</option>
+      <option value="char">Character</option>
+      <option value="line">Line only</option>
+    </select>
+  </div>
+  <div class="ctrl-sep"></div>
+  <div class="ctrl-group">
+    <label><input type="checkbox" id="opt-ws"> Ignore whitespace</label>
+    <label><input type="checkbox" id="opt-case"> Ignore case</label>
+    <label><input type="checkbox" id="opt-blank"> Ignore blank lines</label>
+  </div>
+  <div class="ctrl-sep"></div>
+  <div class="ctrl-group">
+    <label class="ctrl-label" for="ctx-lines">Context:</label>
+    <input type="number" id="ctx-lines" value="3" min="0" max="99" title="Context lines around changes" />
+  </div>
+  <div class="ctrl-sep"></div>
+  <div class="ctrl-group">
+    <label><input type="checkbox" id="opt-wrap"> Wrap lines</label>
+    <label><input type="checkbox" id="opt-auto" checked> Auto-compare</label>
+  </div>
+  <div class="ctrl-sep"></div>
+  <div class="ctrl-group">
+    <label class="ctrl-label" for="find-box">🔍</label>
+    <input type="text" id="find-box" placeholder="Find in diff…" />
+  </div>
+</div>
+
+<!-- ===== STATS BAR ===== -->
+<div id="stats-bar" style="display:none">
+  <span id="chip-add" class="stat-chip stat-add"></span>
+  <span id="chip-del" class="stat-chip stat-del"></span>
+  <span id="chip-chg" class="stat-chip stat-chg"></span>
+  <span id="chip-eq"  class="stat-chip stat-eq"></span>
+  <span id="chip-sim" style="font-size:.78rem;color:var(--fg2)"></span>
+  <div id="stats-bar-spacer"></div>
+  <input type="text" id="find-box2" placeholder="🔍 Find in diff…" style="font-size:.78rem;padding:2px 8px;width:150px" />
+  <div class="nav-btns">
+    <button id="prev-btn" title="Previous diff (Shift+N)">◀</button>
+    <span id="diff-pos"></span>
+    <button id="next-btn" title="Next diff (N)">▶</button>
+  </div>
+  <button id="copy-btn" title="Copy diff to clipboard">📋 Copy</button>
+  <button id="dl-btn" title="Download diff">⬇ Download</button>
+</div>
+
+<!-- ===== DIFF OUTPUT ===== -->
+<div id="diff-output">
+  <div id="diff-placeholder">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4"/><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
+    <p>Enter text in both panes and click <strong>Compare</strong></p>
+    <p style="font-size:.75rem">Supports drag &amp; drop, file upload, and keyboard shortcuts</p>
+  </div>
+</div>
+
+</div><!-- /#app -->
+
+<!-- ===== TOAST ===== -->
+<div id="toast"></div>
+
+<!-- ===== KEYBOARD SHORTCUTS MODAL ===== -->
+<div id="modal-overlay" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts">
+  <div id="modal">
+    <button id="modal-close" onclick="closeModal()">✕</button>
+    <h2>⌨ Keyboard Shortcuts</h2>
+    <table>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>Compare texts</td></tr>
+      <tr><td><kbd>N</kbd></td><td>Next diff hunk</td></tr>
+      <tr><td><kbd>Shift</kbd>+<kbd>N</kbd></td><td>Previous diff hunk</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>C</kbd> (in diff)</td><td>Copy diff</td></tr>
+      <tr><td><kbd>D</kbd></td><td>Download diff</td></tr>
+      <tr><td><kbd>T</kbd></td><td>Toggle theme</td></tr>
+      <tr><td><kbd>W</kbd></td><td>Toggle line wrap</td></tr>
+      <tr><td><kbd>V</kbd></td><td>Cycle view mode</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Focus find box</td></tr>
+      <tr><td><kbd>?</kbd></td><td>Show this help</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>Close dialog</td></tr>
+    </table>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ===================================================================
+   CONSTANTS
+   =================================================================== */
+const MAX_LCS_TABLE_SIZE = 4_000_000; // rows×cols threshold before switching to fast heuristic
+
+/* ===================================================================
+   DIFF ENGINE
+   =================================================================== */
+
+/**
+ * Compute line-level diff between two arrays using LCS.
+ * Returns array of {type:'eq'|'ins'|'del', a?, b?, ai?, bi?}
+ */
+function diffArrays(a, b) {
+  const n = a.length, m = b.length;
+  if (n === 0 && m === 0) return [];
+  if (n === 0) return b.map((v,i)=>({type:'ins',b:v,bi:i}));
+  if (m === 0) return a.map((v,i)=>({type:'del',a:v,ai:i}));
+
+  // For large texts use a fast path (split on equal prefix/suffix)
+  let pfx = 0, sfx = 0;
+  while (pfx < n && pfx < m && a[pfx]===b[pfx]) pfx++;
+  while (sfx < n-pfx && sfx < m-pfx && a[n-1-sfx]===b[m-1-sfx]) sfx++;
+
+  const amid = a.slice(pfx, n-sfx);
+  const bmid = b.slice(pfx, m-sfx);
+
+  const ops = [];
+  for (let i=0;i<pfx;i++) ops.push({type:'eq',a:a[i],b:b[i],ai:i,bi:i});
+  ops.push(...lcsCore(amid, bmid, pfx, pfx));
+  const aOff=n-sfx, bOff=m-sfx;
+  for (let i=0;i<sfx;i++) ops.push({type:'eq',a:a[aOff+i],b:b[bOff+i],ai:aOff+i,bi:bOff+i});
+  return ops;
+}
+
+function lcsCore(a, b, aBase, bBase) {
+  const n=a.length, m=b.length;
+  if (n===0 && m===0) return [];
+  if (n===0) return b.map((v,i)=>({type:'ins',b:v,bi:bBase+i}));
+  if (m===0) return a.map((v,i)=>({type:'del',a:v,ai:aBase+i}));
+
+  // Cap LCS table to avoid OOM on huge inputs
+  if (n*m > MAX_LCS_TABLE_SIZE) return diffLarge(a, b, aBase, bBase);
+
+  // Build LCS DP table
+  const C = new Array(n+1);
+  for (let i=0;i<=n;i++) C[i]=new Uint32Array(m+1);
+  for (let i=1;i<=n;i++) {
+    for (let j=1;j<=m;j++) {
+      if (a[i-1]===b[j-1]) C[i][j]=C[i-1][j-1]+1;
+      else C[i][j]=C[i-1][j]>C[i][j-1]?C[i-1][j]:C[i][j-1];
+    }
+  }
+
+  const ops=[];
+  let i=n,j=m;
+  while(i>0||j>0){
+    if(i>0&&j>0&&a[i-1]===b[j-1]){
+      ops.unshift({type:'eq',a:a[i-1],b:b[j-1],ai:aBase+i-1,bi:bBase+j-1});
+      i--;j--;
+    } else if(j>0&&(i===0||C[i][j-1]>=C[i-1][j])){
+      ops.unshift({type:'ins',b:b[j-1],bi:bBase+j-1});
+      j--;
+    } else {
+      ops.unshift({type:'del',a:a[i-1],ai:aBase+i-1});
+      i--;
+    }
+  }
+  return ops;
+}
+
+/** Fast O(n) heuristic diff for very large inputs */
+function diffLarge(a, b, aBase, bBase) {
+  const ops = [];
+  const maxLines = Math.max(a.length, b.length);
+  // Simple mark-based: build hash index of b, then do greedy match
+  const bMap = new Map();
+  for (let j=0;j<b.length;j++) {
+    if (!bMap.has(b[j])) bMap.set(b[j],[]);
+    bMap.get(b[j]).push(j);
+  }
+  let ai=0,bi=0;
+  while(ai<a.length&&bi<b.length){
+    if(a[ai]===b[bi]){
+      ops.push({type:'eq',a:a[ai],b:b[bi],ai:aBase+ai,bi:bBase+bi});
+      ai++;bi++;
+    } else {
+      // look ahead up to 4 lines
+      let found=false;
+      for(let d=1;d<=4&&!found;d++){
+        if(ai+d<a.length&&a[ai+d]===b[bi]){
+          for(let k=0;k<d;k++) ops.push({type:'del',a:a[ai+k],ai:aBase+ai+k});
+          ai+=d;found=true;
+        } else if(bi+d<b.length&&a[ai]===b[bi+d]){
+          for(let k=0;k<d;k++) ops.push({type:'ins',b:b[bi+k],bi:bBase+bi+k});
+          bi+=d;found=true;
+        }
+      }
+      if(!found){
+        ops.push({type:'del',a:a[ai],ai:aBase+ai}); ai++;
+        if(bi<b.length){ops.push({type:'ins',b:b[bi],bi:bBase+bi});bi++;}
+      }
+    }
+  }
+  while(ai<a.length) ops.push({type:'del',a:a[ai],ai:aBase+ai++});
+  while(bi<b.length) ops.push({type:'ins',b:b[bi],bi:bBase+bi++});
+  return ops;
+}
+
+/** Tokenize a string for word/char diff */
+function tokenize(str, mode) {
+  if (mode==='char') return [...str];
+  // word mode: split keeping delimiters as tokens
+  return str.split(/([ \t]+|[^a-zA-Z0-9_])/g).filter(t=>t!=='');
+}
+
+/** Inline diff: return HTML string with highlights */
+function inlineDiff(oldStr, newStr, mode) {
+  if (mode==='line') return {oldHtml: esc(oldStr), newHtml: esc(newStr)};
+  const a = tokenize(oldStr, mode);
+  const b = tokenize(newStr, mode);
+  const ops = diffArrays(a, b);
+  let oldHtml='', newHtml='';
+  for (const op of ops) {
+    if (op.type==='eq'){
+      // a and b are identical for eq ops
+      oldHtml += esc(op.a);
+      newHtml += esc(op.a);
+    } else if (op.type==='del'){
+      oldHtml += `<mark class="hl-del">${esc(op.a)}</mark>`;
+    } else {
+      newHtml += `<mark class="hl-add">${esc(op.b)}</mark>`;
+    }
+  }
+  return {oldHtml, newHtml};
+}
+
+/** Escape HTML */
+function esc(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ===================================================================
+   DIFF PROCESSING
+   =================================================================== */
+/**
+ * Returns {hunks, stats}
+ * hunks: array of hunk objects for rendering
+ */
+function computeDiff(oldText, newText, options) {
+  let oldLines = oldText.split('\n');
+  let newLines = newText.split('\n');
+
+  // Remove trailing newline artifact
+  if (oldLines[oldLines.length-1]==='') oldLines.pop();
+  if (newLines[newLines.length-1]==='') newLines.pop();
+
+  // Normalize for comparison (not for display)
+  const normalize = s => {
+    let r = s;
+    if (options.ignoreCase) r = r.toLowerCase();
+    if (options.ignoreWS) r = r.replace(/\s+/g,' ').trim();
+    return r;
+  };
+
+  let oldNorm = oldLines.map(normalize);
+  let newNorm = newLines.map(normalize);
+
+  // Filter blank lines for comparison
+  let aIdx = [], bIdx = [];
+  if (options.ignoreBlank) {
+    aIdx = oldNorm.map((v,i)=>v===''?-1:i).filter(i=>i>=0);
+    bIdx = newNorm.map((v,i)=>v===''?-1:i).filter(i=>i>=0);
+    oldNorm = aIdx.map(i=>oldNorm[i]);
+    newNorm = bIdx.map(i=>newNorm[i]);
+  } else {
+    aIdx = oldNorm.map((_,i)=>i);
+    bIdx = newNorm.map((_,i)=>i);
+  }
+
+  const rawOps = diffArrays(oldNorm, newNorm);
+
+  // Map ops back to original line indices
+  const ops = rawOps.map(op=>{
+    const o = {...op};
+    if (o.ai!==undefined) o.ai = aIdx[o.ai];
+    if (o.bi!==undefined) o.bi = bIdx[o.bi];
+    return o;
+  });
+
+  // Build aligned rows: group consecutive del/ins blocks then pair them
+  const rows = [];
+  let i=0;
+  while(i<ops.length){
+    const op=ops[i];
+    if(op.type==='eq'){
+      rows.push({type:'eq', ai:op.ai, bi:op.bi,
+        aLine: oldLines[op.ai], bLine: newLines[op.bi]});
+      i++;
+    } else {
+      // Collect a contiguous block of del/ins ops
+      const dels=[], ins=[];
+      while(i<ops.length && ops[i].type!=='eq'){
+        if(ops[i].type==='del') dels.push(ops[i]);
+        else ins.push(ops[i]);
+        i++;
+      }
+      // Pair up del+ins as 'chg', extras as standalone
+      const pairs=Math.min(dels.length, ins.length);
+      for(let j=0;j<pairs;j++){
+        rows.push({type:'chg', ai:dels[j].ai, bi:ins[j].bi,
+          aLine: oldLines[dels[j].ai], bLine: newLines[ins[j].bi]});
+      }
+      for(let j=pairs;j<dels.length;j++)
+        rows.push({type:'del', ai:dels[j].ai, aLine: oldLines[dels[j].ai]});
+      for(let j=pairs;j<ins.length;j++)
+        rows.push({type:'ins', bi:ins[j].bi, bLine: newLines[ins[j].bi]});
+    }
+  }
+
+  // Stats
+  const stats = {add:0, del:0, chg:0, eq:0};
+  for (const r of rows) {
+    if(r.type==='ins') stats.add++;
+    else if(r.type==='del') stats.del++;
+    else if(r.type==='chg') stats.chg++;
+    else stats.eq++;
+  }
+
+  return {rows, stats, oldLines, newLines};
+}
+
+/* ===================================================================
+   RENDERING
+   =================================================================== */
+function renderSideBySide(rows, options, granularity) {
+  const ctx = parseInt(options.contextLines)||3;
+  const wrap = options.wrap ? ' wrap' : '';
+  const groups = buildGroups(rows, ctx);
+
+  let html = '<table class="sb-table">';
+  let diffIdx = 0;
+
+  for (const g of groups) {
+    if (g.type==='sep') {
+      html += `<tr class="row-sep"><td colspan="4"><button class="expand-btn" onclick="expandGroup(this)" data-start="${g.start}" data-end="${g.end}">⋯ ${g.end-g.start} unchanged lines — click to expand</button></td></tr>`;
+      continue;
+    }
+    for (const row of g.rows) {
+      if (row.type==='eq') {
+        const an = row.ai!==undefined?row.ai+1:'';
+        const bn = row.bi!==undefined?row.bi+1:'';
+        html += `<tr class="row-eq">`;
+        html += `<td class="sb-num">${an}</td><td class="sb-code${wrap}">${esc(row.aLine??'')}</td>`;
+        html += `<td class="sb-num">${bn}</td><td class="sb-code${wrap}">${esc(row.bLine??'')}</td>`;
+        html += `</tr>`;
+      } else if (row.type==='del') {
+        html += `<tr class="row-chg-old" data-diff="${diffIdx}">`;
+        html += `<td class="sb-num">${row.ai+1}</td><td class="sb-code${wrap}">${esc(row.aLine)}</td>`;
+        html += `<td class="sb-num"></td><td class="sb-code${wrap}"></td>`;
+        html += `</tr>`;
+        diffIdx++;
+      } else if (row.type==='ins') {
+        html += `<tr class="row-chg-new" data-diff="${diffIdx}">`;
+        html += `<td class="sb-num"></td><td class="sb-code${wrap}"></td>`;
+        html += `<td class="sb-num">${row.bi+1}</td><td class="sb-code${wrap}">${esc(row.bLine)}</td>`;
+        html += `</tr>`;
+        diffIdx++;
+      } else { // chg — show old on left, new on right in same row
+        const {oldHtml, newHtml} = inlineDiff(row.aLine, row.bLine, granularity);
+        html += `<tr class="row-chg" data-diff="${diffIdx}">`;
+        html += `<td class="sb-num sb-num-del">${row.ai+1}</td><td class="sb-code${wrap} sb-code-del">${oldHtml}</td>`;
+        html += `<td class="sb-num sb-num-ins">${row.bi+1}</td><td class="sb-code${wrap} sb-code-ins">${newHtml}</td>`;
+        html += `</tr>`;
+        diffIdx++;
+      }
+    }
+  }
+
+  html += '</table>';
+  return {html, diffCount: diffIdx};
+}
+
+function renderUnified(rows, options, granularity) {
+  const ctx = parseInt(options.contextLines)||3;
+  const wrap = options.wrap ? ' wrap' : '';
+  const groups = buildGroups(rows, ctx);
+
+  let html = '<table class="uni-table">';
+  let diffIdx = 0;
+
+  for (const g of groups) {
+    if (g.type==='sep') {
+      html += `<tr class="urow-sep"><td colspan="4"><button class="expand-btn" onclick="expandGroupUnified(this)" data-start="${g.start}" data-end="${g.end}">⋯ ${g.end-g.start} unchanged lines — click to expand</button></td></tr>`;
+      continue;
+    }
+    for (const row of g.rows) {
+      if (row.type==='eq') {
+        const an=row.ai!==undefined?row.ai+1:'';
+        const bn=row.bi!==undefined?row.bi+1:'';
+        html += `<tr class="urow-eq"><td class="uni-num">${an}</td><td class="uni-num">${bn}</td><td class="uni-sign"> </td><td class="uni-code${wrap}">${esc(row.aLine??'')}</td></tr>`;
+      } else if (row.type==='del') {
+        html += `<tr class="urow-del" data-diff="${diffIdx}"><td class="uni-num">${row.ai+1}</td><td class="uni-num"> </td><td class="uni-sign">-</td><td class="uni-code${wrap}">${esc(row.aLine)}</td></tr>`;
+        diffIdx++;
+      } else if (row.type==='ins') {
+        html += `<tr class="urow-add" data-diff="${diffIdx}"><td class="uni-num"> </td><td class="uni-num">${row.bi+1}</td><td class="uni-sign">+</td><td class="uni-code${wrap}">${esc(row.bLine)}</td></tr>`;
+        diffIdx++;
+      } else { // chg
+        const {oldHtml, newHtml} = inlineDiff(row.aLine, row.bLine, granularity);
+        html += `<tr class="urow-del" data-diff="${diffIdx}"><td class="uni-num">${row.ai+1}</td><td class="uni-num"> </td><td class="uni-sign">-</td><td class="uni-code${wrap}">${oldHtml}</td></tr>`;
+        html += `<tr class="urow-add" data-diff="${diffIdx}"><td class="uni-num"> </td><td class="uni-num">${row.bi+1}</td><td class="uni-sign">+</td><td class="uni-code${wrap}">${newHtml}</td></tr>`;
+        diffIdx++;
+      }
+    }
+  }
+
+  html += '</table>';
+  return {html, diffCount: diffIdx};
+}
+
+function renderInline(rows, options, granularity) {
+  const ctx = parseInt(options.contextLines)||3;
+  const wrap = options.wrap ? ' wrap' : '';
+  const groups = buildGroups(rows, ctx);
+
+  let html = '<table class="inline-table">';
+  let diffIdx = 0;
+
+  for (const g of groups) {
+    if (g.type==='sep') {
+      html += `<tr class="irow-sep"><td colspan="3"><button class="expand-btn" onclick="expandGroupInline(this)" data-start="${g.start}" data-end="${g.end}">⋯ ${g.end-g.start} unchanged lines — click to expand</button></td></tr>`;
+      continue;
+    }
+    for (const row of g.rows) {
+      if (row.type==='eq') {
+        html += `<tr class="irow-eq"><td class="il-num">${row.ai!==undefined?row.ai+1:''}</td><td class="il-label"></td><td class="il-code${wrap}">${esc(row.aLine??'')}</td></tr>`;
+      } else if (row.type==='del') {
+        html += `<tr class="irow-del" data-diff="${diffIdx}"><td class="il-num">${row.ai+1}</td><td class="il-label" style="color:var(--del-fg)">OLD</td><td class="il-code${wrap}" style="background:var(--del-bg)">${esc(row.aLine)}</td></tr>`;
+        diffIdx++;
+      } else if (row.type==='ins') {
+        html += `<tr class="irow-add" data-diff="${diffIdx}"><td class="il-num">${row.bi+1}</td><td class="il-label" style="color:var(--add-fg)">NEW</td><td class="il-code${wrap}" style="background:var(--add-bg)">${esc(row.bLine)}</td></tr>`;
+        diffIdx++;
+      } else { // chg
+        const {oldHtml, newHtml} = inlineDiff(row.aLine, row.bLine, granularity);
+        html += `<tr class="irow-del" data-diff="${diffIdx}"><td class="il-num">${row.ai+1}</td><td class="il-label" style="color:var(--del-fg)">OLD</td><td class="il-code${wrap}" style="background:var(--del-bg)">${oldHtml}</td></tr>`;
+        html += `<tr class="irow-add" data-diff="${diffIdx}"><td class="il-num">${row.bi+1}</td><td class="il-label" style="color:var(--add-fg)">NEW</td><td class="il-code${wrap}" style="background:var(--add-bg)">${newHtml}</td></tr>`;
+        diffIdx++;
+      }
+    }
+  }
+
+  html += '</table>';
+  return {html, diffCount: diffIdx};
+}
+
+/**
+ * Build display groups: collapse unchanged regions if ctx > 0.
+ * Each group is either {type:'rows', rows:[]} or {type:'sep', start, end}
+ */
+function buildGroups(rows, ctx) {
+  if (ctx < 0) ctx = 0;
+  const groups = [];
+  const n = rows.length;
+  // Mark which rows are "changed" (not eq)
+  const changed = rows.map(r=>r.type!=='eq');
+
+  // For each row, find nearest changed row distance
+  const near = new Array(n).fill(false);
+  for (let i=0;i<n;i++) {
+    if (changed[i]) {
+      for (let d=-ctx;d<=ctx;d++) {
+        const j=i+d;
+        if (j>=0&&j<n) near[j]=true;
+      }
+    }
+  }
+
+  let curGroup = null;
+  for (let i=0;i<n;i++) {
+    if (near[i]) {
+      if (!curGroup||curGroup.type!=='rows') {
+        curGroup={type:'rows',rows:[]};
+        groups.push(curGroup);
+      }
+      curGroup.rows.push(rows[i]);
+    } else {
+      // Collapsed
+      const last=groups[groups.length-1];
+      if (last&&last.type==='sep') {
+        last.end=i+1;
+      } else {
+        groups.push({type:'sep',start:i,end:i+1,_rows:[rows[i]]});
+        curGroup=null;
+      }
+      if (groups[groups.length-1].type==='sep') {
+        groups[groups.length-1]._rows = groups[groups.length-1]._rows||[];
+        groups[groups.length-1]._rows[i-groups[groups.length-1].start]=rows[i];
+      }
+    }
+  }
+
+  return groups;
+}
+
+/* ===================================================================
+   STATE & CONTROLLER
+   =================================================================== */
+let lastResult = null;
+let currentDiffIdx = 0;
+let totalDiffs = 0;
+let allRows = [];
+let debounceTimer = null;
+
+function getOptions() {
+  return {
+    ignoreWS:    document.getElementById('opt-ws').checked,
+    ignoreCase:  document.getElementById('opt-case').checked,
+    ignoreBlank: document.getElementById('opt-blank').checked,
+    contextLines: parseInt(document.getElementById('ctx-lines').value)||3,
+    wrap:         document.getElementById('opt-wrap').checked,
+    view:         document.getElementById('view-select').value,
+    granularity:  document.getElementById('granularity').value,
+  };
+}
+
+function runCompare() {
+  const oldText = document.getElementById('text-left').value;
+  const newText = document.getElementById('text-right').value;
+  const options = getOptions();
+
+  const output = document.getElementById('diff-output');
+  const statsBar = document.getElementById('stats-bar');
+
+  if (!oldText && !newText) {
+    output.innerHTML = '';
+    output.appendChild(document.getElementById('diff-placeholder'));
+    document.getElementById('diff-placeholder').style.display='flex';
+    statsBar.style.display='none';
+    return;
+  }
+
+  const {rows, stats, oldLines, newLines} = computeDiff(oldText, newText, options);
+  allRows = rows;
+  lastResult = {rows, stats, oldLines, newLines, options};
+
+  // Render
+  let renderResult;
+  if (options.view==='unified') {
+    renderResult = renderUnified(rows, options, options.granularity);
+  } else if (options.view==='inline') {
+    renderResult = renderInline(rows, options, options.granularity);
+  } else {
+    renderResult = renderSideBySide(rows, options, options.granularity);
+  }
+
+  output.innerHTML = renderResult.html;
+  totalDiffs = renderResult.diffCount;
+  currentDiffIdx = -1;
+
+  // Stats bar
+  statsBar.style.display='flex';
+  document.getElementById('chip-add').textContent = `+${stats.add} added`;
+  document.getElementById('chip-del').textContent = `-${stats.del} removed`;
+  document.getElementById('chip-chg').textContent = `~${stats.chg} changed`;
+  document.getElementById('chip-eq').textContent  = `=${stats.eq} unchanged`;
+
+  const total = stats.add+stats.del+stats.chg+stats.eq;
+  const sim = total===0?100:Math.round(stats.eq/total*100);
+  document.getElementById('chip-sim').textContent = `${sim}% similar`;
+
+  updateNavUI();
+
+  // Find highlight
+  const fv = document.getElementById('find-box').value || document.getElementById('find-box2').value;
+  if (fv) applyFind(fv);
+}
+
+/* ===================================================================
+   NAVIGATION
+   =================================================================== */
+function navDiff(dir) {
+  if (totalDiffs===0) return;
+  currentDiffIdx = (currentDiffIdx + dir + totalDiffs) % totalDiffs;
+  scrollToDiff(currentDiffIdx);
+  updateNavUI();
+}
+
+function scrollToDiff(idx) {
+  const output = document.getElementById('diff-output');
+  // Remove old active
+  output.querySelectorAll('.active-diff').forEach(el=>el.classList.remove('active-diff'));
+  // Find all rows with data-diff == idx
+  const els = output.querySelectorAll(`[data-diff="${idx}"]`);
+  if (els.length===0) return;
+  els.forEach(el=>el.classList.add('active-diff'));
+  els[0].scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function updateNavUI() {
+  const pos = document.getElementById('diff-pos');
+  if (totalDiffs===0) {
+    pos.textContent = 'No diffs';
+    document.getElementById('prev-btn').disabled=true;
+    document.getElementById('next-btn').disabled=true;
+  } else {
+    pos.textContent = totalDiffs>0&&currentDiffIdx>=0 ? `${currentDiffIdx+1}/${totalDiffs}` : `0/${totalDiffs}`;
+    document.getElementById('prev-btn').disabled=false;
+    document.getElementById('next-btn').disabled=false;
+  }
+}
+
+/* ===================================================================
+   EXPAND COLLAPSED SECTIONS
+   =================================================================== */
+function expandGroupRows(btn) {
+  const start = parseInt(btn.dataset.start);
+  const end   = parseInt(btn.dataset.end);
+  const tr     = btn.closest('tr');
+  const parent = tr.parentNode;
+  const sliceRows = allRows.slice(start, end);
+  const view = document.getElementById('view-select').value;
+
+  // Render only the 'eq' rows in this collapsed section (no context collapse)
+  let innerHtml = '';
+  if (view === 'unified') {
+    for (const row of sliceRows) {
+      if (row.type === 'eq') {
+        const an = row.ai !== undefined ? row.ai+1 : '';
+        const bn = row.bi !== undefined ? row.bi+1 : '';
+        innerHtml += `<tr class="urow-eq"><td class="uni-num">${an}</td><td class="uni-num">${bn}</td><td class="uni-sign"> </td><td class="uni-code">${esc(row.aLine??'')}</td></tr>`;
+      }
+    }
+  } else if (view === 'inline') {
+    for (const row of sliceRows) {
+      if (row.type === 'eq') {
+        innerHtml += `<tr class="irow-eq"><td class="il-num">${row.ai !== undefined ? row.ai+1 : ''}</td><td class="il-label"></td><td class="il-code">${esc(row.aLine??'')}</td></tr>`;
+      }
+    }
+  } else {
+    for (const row of sliceRows) {
+      if (row.type === 'eq') {
+        const an = row.ai !== undefined ? row.ai+1 : '';
+        const bn = row.bi !== undefined ? row.bi+1 : '';
+        innerHtml += `<tr class="row-eq"><td class="sb-num">${an}</td><td class="sb-code">${esc(row.aLine??'')}</td><td class="sb-num">${bn}</td><td class="sb-code">${esc(row.bLine??'')}</td></tr>`;
+      }
+    }
+  }
+
+  const tmpl = document.createElement('template');
+  tmpl.innerHTML = innerHtml;
+  parent.insertBefore(tmpl.content, tr);
+  tr.remove();
+}
+
+window.expandGroup        = expandGroupRows;
+window.expandGroupUnified = expandGroupRows;
+window.expandGroupInline  = expandGroupRows;
+
+/* ===================================================================
+   FIND IN DIFF
+   =================================================================== */
+function applyFind(query) {
+  const output = document.getElementById('diff-output');
+  // Remove all existing find highlights first
+  output.querySelectorAll('.find-match').forEach(m=>{
+    const p=m.parentNode;
+    p.replaceChild(document.createTextNode(m.textContent),m);
+    p.normalize();
+  });
+  if (!query) return;
+
+  // Highlight by walking text nodes only — avoids corrupting existing <mark> elements
+  const re = new RegExp(escapeRe(query),'gi');
+  const cells = output.querySelectorAll('.sb-code,.uni-code,.il-code');
+  cells.forEach(cell=>{
+    if (!cell.textContent.match(re)) return;
+    // Collect text nodes inside this cell
+    const textNodes = [];
+    const walk = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walk.nextNode())) textNodes.push(node);
+    for (const tn of textNodes) {
+      const val = tn.nodeValue;
+      re.lastIndex = 0;
+      if (!re.test(val)) continue;
+      re.lastIndex = 0;
+      const frag = document.createDocumentFragment();
+      let last = 0, m2;
+      while ((m2 = re.exec(val)) !== null) {
+        if (m2.index > last) frag.appendChild(document.createTextNode(val.slice(last, m2.index)));
+        const mark = document.createElement('mark');
+        mark.className = 'find-match';
+        mark.textContent = m2[0];
+        frag.appendChild(mark);
+        last = m2.index + m2[0].length;
+      }
+      if (last < val.length) frag.appendChild(document.createTextNode(val.slice(last)));
+      tn.parentNode.replaceChild(frag, tn);
+    }
+  });
+}
+
+function escapeRe(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+}
+
+/* ===================================================================
+   COPY & DOWNLOAD
+   =================================================================== */
+function copyDiff() {
+  if (!lastResult) return;
+  const {rows} = lastResult;
+  let text='';
+  for (const r of rows) {
+    if(r.type==='eq') text+=` ${r.aLine}\n`;
+    else if(r.type==='del') text+=`-${r.aLine}\n`;
+    else if(r.type==='ins') text+=`+${r.bLine}\n`;
+    else { text+=`-${r.aLine}\n`; text+=`+${r.bLine}\n`; }
+  }
+  navigator.clipboard.writeText(text).then(()=>showToast('Diff copied!')).catch(()=>showToast('Copy failed'));
+}
+
+function downloadDiff() {
+  if (!lastResult) return;
+  const {rows} = lastResult;
+  // Build unified diff
+  let text='--- Original\n+++ Modified\n';
+  let hunk='', hunkStart=true;
+  for (const r of rows) {
+    if(r.type==='eq') text+=` ${r.aLine??''}\n`;
+    else if(r.type==='del') text+=`-${r.aLine}\n`;
+    else if(r.type==='ins') text+=`+${r.bLine}\n`;
+    else { text+=`-${r.aLine}\n`; text+=`+${r.bLine}\n`; }
+  }
+  const blob=new Blob([text],{type:'text/plain'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='textdiff.patch';
+  a.click();
+  showToast('Diff downloaded!');
+}
+
+/* ===================================================================
+   FILE HANDLING
+   =================================================================== */
+function setupFileHandling(dropZoneId, textAreaId, fileInputId, labelId) {
+  const drop = document.getElementById(dropZoneId);
+  const ta   = document.getElementById(textAreaId);
+  const fi   = document.getElementById(fileInputId);
+  const lbl  = document.getElementById(labelId);
+
+  drop.addEventListener('dragenter', e=>{e.preventDefault();drop.classList.add('drag-over')});
+  drop.addEventListener('dragover',  e=>{e.preventDefault();drop.classList.add('drag-over')});
+  drop.addEventListener('dragleave', e=>{if(!drop.contains(e.relatedTarget))drop.classList.remove('drag-over')});
+  drop.addEventListener('drop', e=>{
+    e.preventDefault();drop.classList.remove('drag-over');
+    const file=e.dataTransfer.files[0];
+    if(file) loadFile(file, ta, lbl);
+  });
+
+  fi.addEventListener('change', ()=>{
+    if(fi.files[0]) loadFile(fi.files[0], ta, lbl);
+    fi.value='';
+  });
+}
+
+function loadFile(file, ta, lbl) {
+  const reader=new FileReader();
+  reader.onload=e=>{
+    ta.value=e.target.result;
+    if(lbl) lbl.textContent=file.name;
+    if(lbl) lbl.title=file.name;
+    updateStat(ta);
+    if(document.getElementById('opt-auto').checked) scheduleCompare();
+  };
+  reader.readAsText(file);
+}
+
+/* ===================================================================
+   INPUT STATS
+   =================================================================== */
+function updateStat(ta) {
+  const id = ta.id==='text-left'?'stat-left':'stat-right';
+  const lines = ta.value.split('\n').length;
+  const chars = ta.value.length;
+  document.getElementById(id).textContent = `${lines} lines, ${chars} chars`;
+}
+
+/* ===================================================================
+   JSON FORMATTER
+   =================================================================== */
+function formatJSON(taId) {
+  const ta = document.getElementById(taId);
+  try {
+    const obj = JSON.parse(ta.value);
+    ta.value = JSON.stringify(obj, null, 2);
+    showToast('JSON formatted');
+    updateStat(ta);
+    if(document.getElementById('opt-auto').checked) scheduleCompare();
+  } catch(e) {
+    showToast('Invalid JSON: '+e.message);
+  }
+}
+
+/* ===================================================================
+   THEME
+   =================================================================== */
+function initTheme() {
+  const saved = localStorage.getItem('textdiff-theme');
+  if (saved) {
+    applyTheme(saved);
+  } else {
+    const pref = window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+    applyTheme(pref);
+  }
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme=theme;
+  document.getElementById('theme-btn').textContent=theme==='dark'?'☀️':'🌙';
+  localStorage.setItem('textdiff-theme',theme);
+}
+
+function toggleTheme() {
+  const cur = document.documentElement.dataset.theme;
+  applyTheme(cur==='dark'?'light':'dark');
+}
+
+/* ===================================================================
+   TOAST
+   =================================================================== */
+let toastTimer;
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+/* ===================================================================
+   MODAL
+   =================================================================== */
+function openModal() { document.getElementById('modal-overlay').classList.add('open'); }
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('open'); }
+
+/* ===================================================================
+   DEBOUNCED COMPARE
+   =================================================================== */
+function scheduleCompare() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(()=>{
+    if(document.getElementById('opt-auto').checked) runCompare();
+  }, 600);
+}
+
+/* ===================================================================
+   INITIALIZATION
+   =================================================================== */
+document.addEventListener('DOMContentLoaded', ()=>{
+  initTheme();
+
+  // File handling
+  setupFileHandling('drop-left',  'text-left',  'file-left',  'label-left');
+  setupFileHandling('drop-right', 'text-right', 'file-right', 'label-right');
+
+  // Buttons
+  document.getElementById('compare-btn').addEventListener('click', runCompare);
+  document.getElementById('theme-btn').addEventListener('click', toggleTheme);
+  document.getElementById('kbd-btn').addEventListener('click', openModal);
+  document.getElementById('modal-overlay').addEventListener('click', e=>{if(e.target.id==='modal-overlay')closeModal()});
+
+  document.getElementById('upload-left').addEventListener('click',  ()=>document.getElementById('file-left').click());
+  document.getElementById('upload-right').addEventListener('click', ()=>document.getElementById('file-right').click());
+
+  document.getElementById('clear-left').addEventListener('click', ()=>{
+    document.getElementById('text-left').value='';
+    document.getElementById('label-left').textContent='Original';
+    document.getElementById('stat-left').textContent='';
+    if(document.getElementById('opt-auto').checked) scheduleCompare();
+  });
+  document.getElementById('clear-right').addEventListener('click', ()=>{
+    document.getElementById('text-right').value='';
+    document.getElementById('label-right').textContent='Modified';
+    document.getElementById('stat-right').textContent='';
+    if(document.getElementById('opt-auto').checked) scheduleCompare();
+  });
+
+  document.getElementById('swap-btn').addEventListener('click', ()=>{
+    const tl=document.getElementById('text-left');
+    const tr=document.getElementById('text-right');
+    const ll=document.getElementById('label-left');
+    const lr=document.getElementById('label-right');
+    [tl.value, tr.value]=[tr.value, tl.value];
+    [ll.textContent, lr.textContent]=[lr.textContent, ll.textContent];
+    updateStat(tl); updateStat(tr);
+    if(document.getElementById('opt-auto').checked) scheduleCompare();
+  });
+
+  document.getElementById('paste-left').addEventListener('click', async ()=>{
+    try{
+      const t=await navigator.clipboard.readText();
+      document.getElementById('text-left').value=t;
+      updateStat(document.getElementById('text-left'));
+      if(document.getElementById('opt-auto').checked) scheduleCompare();
+    }catch{showToast('Cannot access clipboard');}
+  });
+  document.getElementById('paste-right').addEventListener('click', async ()=>{
+    try{
+      const t=await navigator.clipboard.readText();
+      document.getElementById('text-right').value=t;
+      updateStat(document.getElementById('text-right'));
+      if(document.getElementById('opt-auto').checked) scheduleCompare();
+    }catch{showToast('Cannot access clipboard');}
+  });
+
+  document.getElementById('fmt-left').addEventListener('click',  ()=>formatJSON('text-left'));
+  document.getElementById('fmt-right').addEventListener('click', ()=>formatJSON('text-right'));
+
+  document.getElementById('copy-btn').addEventListener('click', copyDiff);
+  document.getElementById('dl-btn').addEventListener('click', downloadDiff);
+
+  document.getElementById('prev-btn').addEventListener('click', ()=>navDiff(-1));
+  document.getElementById('next-btn').addEventListener('click', ()=>navDiff(1));
+
+  // Auto compare on input
+  ['text-left','text-right'].forEach(id=>{
+    const ta=document.getElementById(id);
+    ta.addEventListener('input', ()=>{
+      updateStat(ta);
+      if(document.getElementById('opt-auto').checked) scheduleCompare();
+    });
+  });
+
+  // Option changes trigger re-compare (ctx-lines also always triggers since it affects display)
+  ['opt-ws','opt-case','opt-blank','opt-wrap','view-select','granularity','ctx-lines'].forEach(id=>{
+    document.getElementById(id).addEventListener('change', ()=>{ runCompare(); });
+  });
+
+  // Find boxes — only re-apply highlighting, no need to recompute diff
+  const findHandler = (e) => {
+    const val=e.target.value;
+    document.getElementById('find-box').value=val;
+    document.getElementById('find-box2').value=val;
+    applyFind(val);
+  };
+  document.getElementById('find-box').addEventListener('input', findHandler);
+  document.getElementById('find-box2').addEventListener('input', findHandler);
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', e=>{
+    const tag=document.activeElement.tagName;
+    const inInput=tag==='TEXTAREA'||tag==='INPUT';
+
+    if(e.key==='Escape') { closeModal(); return; }
+    if(e.key==='?'&&!inInput) { openModal(); return; }
+    if(e.ctrlKey&&e.key==='Enter') { e.preventDefault(); runCompare(); return; }
+    if(e.ctrlKey&&e.key==='f') { e.preventDefault(); document.getElementById('find-box2').focus(); return; }
+    if(inInput) return;
+    if(e.key==='n'||e.key==='N') { e.shiftKey ? navDiff(-1) : navDiff(1); return; }
+    if(e.key==='t'||e.key==='T') { toggleTheme(); return; }
+    if(e.key==='w'||e.key==='W') {
+      const cb=document.getElementById('opt-wrap');
+      cb.checked=!cb.checked;
+      runCompare();
+      return;
+    }
+    if(e.key==='v'||e.key==='V') {
+      const sel=document.getElementById('view-select');
+      const opts=['sidebyside','unified','inline'];
+      const cur=opts.indexOf(sel.value);
+      sel.value=opts[(cur+1)%opts.length];
+      runCompare();
+      return;
+    }
+    if(e.key==='d'||e.key==='D') { downloadDiff(); return; }
+  });
+});
+</script>
+</body>
+</html>
